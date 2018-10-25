@@ -29,10 +29,18 @@ https://www.docker.com/
 
 「Get Started」からダウンロードしてインストール
 
+アカウントを作る必要があります
+
 ```
 $ docker
 ```
 で `docker` コマンド使えるようになればOK
+
+**※ Windows8以下はDocker動かないのでDocker Toolboxを入れる必要があります**
+
+https://qiita.com/FukuharaYohei/items/a913f5ef5a5aa550f46a
+
+http://www-01.ibm.com/support/docview.wss?uid=swg22007890
 
 ### 2. 以下のようにファイルを置く
 
