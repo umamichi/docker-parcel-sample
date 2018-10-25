@@ -44,7 +44,7 @@ $ docker
 $ mkdir docker-parcel-sample && cd docker-parcel-sample
 ```
 
-3ファイルを全て同じ階層に配置します
+まず `package.json` をつくります
 
 ```
 // package.json
@@ -52,7 +52,7 @@ $ mkdir docker-parcel-sample && cd docker-parcel-sample
   "name": "docker-parcel-sample",
   "version": "1.0.0",
   "scripts": {
-    "start": "parcel index.html"
+    "start": "parcel src/index.html"
   },
   "license": "ISC",
   "devDependencies": {
@@ -61,8 +61,10 @@ $ mkdir docker-parcel-sample && cd docker-parcel-sample
 }
 ```
 
+`src` ディレクトリを作り、2ファイルを配置
+
 ```
-// index.html
+// src/index.html
 <html>
 <body>
   Hello!! This is Docker Parcel html.
@@ -72,7 +74,7 @@ $ mkdir docker-parcel-sample && cd docker-parcel-sample
 ```
 
 ```
-// index.js
+// src/index.js
 console.log('index.js');
 ```
 
@@ -98,12 +100,11 @@ http://localhost:1234/ にアクセスして `Hello!! This is Docker Parcel html
 FROM node:8
 
 # set workdir
-WORKDIR /src
+WORKDIR /docker-app
 
 # Copy app files
-COPY package.json /src/package.json
-COPY index.html /src/index.html
-COPY index.js /src/index.js
+COPY package.json /docker-app/package.json
+COPY src /docker-app/src
 
 # Open port
 EXPOSE 1234
@@ -197,10 +198,153 @@ $ docker rm [CONTAINER ID]
 $ docker ps -a
 ```
 
+同時にビルドした、Dockerイメージも削除しておきましょう
+
+`docker rmi` コマンドを使います
+
+まず消したいイメージを見つけ、
+
+```
+$ docker images
+```
+
+以下コマンドで削除しておきましょう
+
+```
+$ docker rmi [IMAGE ID]
+```
+
+
 
 ## LiveReload機能を使う
 
+LiveReloadは `Websocket` によって行われるので、以下2つの対応をすれば良い
 
-### docker-composeを使う
++ `Websocket` ポートをフォワーディングする
 
-### ビルドする
++ ホストマシンの `src` ディレクトリをコンテナ内の領域にマウントする
+
+
+### 1. LiveReloadのポートを固定
+
+ParcelのHMLのポートはランダムで割り当てられてしまうので、`8080` に固定にする
+
+```
+// package.json
+...
+"scripts": {
+  "start": "parcel index.html --hmr-port 8080"
+},
+...
+```
+
+### 2. ポートフォワーディング
+
+`8080`を追加
+
+`src` ディレクトリをコンテナ内の領域に `COPY` する処理をコメントアウト
+
+```
+// Dockerfile
+
+# Install Node.js and npm
+FROM node:8
+
+# set workdir
+WORKDIR /docker-app
+
+# Copy app files
+COPY package.json /docker-app/package.json
+# コメントアウト↓
+# COPY src /docker-app/src
+
+# Open port
+EXPOSE 1234
+# 追加↓
+EXPOSE 8080
+
+# Install packages
+RUN  yarn
+```
+
+### 3. Docker Build する
+
+さきほどと同じ
+
+```
+$ docker build -t docker-parcel-sample .
+```
+
+
+### 4. Docker Run する
+
+```
+$ docker run -p 1234:1234 -p 8080:8080 -d -v `pwd`/src:/docker-app/src docker-parcel-sample yarn start
+```
+
+
+`--p 1234:1234 -p 8080:8080` で複数のポートフォワーディング
+
+`-v` で、ホストマシンの `src` ディレクトリをコンテナ内の `/docker-app/src` にマウントしている↓
+
+```
+-v `pwd`/src:/docker-app/src
+```
+
+**※Windowsでは `pwd` が使えないので、要調査**
+
+http://localhost:1234 にアクセス
+
+`src/index.html` を変更するとLiveReloadされることが確認できます
+
+
+## docker-composeを使う
+
+`docker-compose` を使ってみましょう
+
+Build から Run までコマンド一つで簡単に実行できます
+
+さきほど実行したような、長ったらしい `docker run` コマンドを実行する必要がなくなります
+
+### 1. docker-composeをインストール
+
+http://docs.docker.jp/compose/install.html
+
+以下コマンドでバージョンが表示されればインストールはOK
+
+```
+$ docker-compose -v
+```
+
+### 2. docker-compose.ymlをつくる
+
+`package.json` と同階層に以下を配置しましょう
+
+```
+// docker-compose.yml
+version: '3'
+services:
+  docker-parcel-sample: # サービス名、自分で決めることができる
+    build: ./             # Dockerfile のあるファイルの場所(git リポジトリのURL も指定可能)
+    container_name: docker-parcel-sample  # コンテナ名。指定しなかった場合は Docker compose で勝手に決められる
+    working_dir: /docker-app       # コンテナ内のワーキングディレクトリ
+    ports:                         # ポートフォワーディング設定。docker run コマンドの-pに相当
+     - 1234:1234                   # ローカルサーバー用
+     - 8080:8080                   # websocket用
+    volumes:                       # マウントするディレクトリ。docker run コマンドの-vに相当
+     - $PWD/src:/docker-app/src   
+    command: yarn start            # 実行コマンドを指定
+```
+
+### 3. docker-compose する
+
+```
+$ docker-compose up
+```
+
+BuildからRunまでこのコマンドで実行されます
+
+http://localhost:1234 にて、LiveReloadが有効な開発環境が構築されました
+
+
+

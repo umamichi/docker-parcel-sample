@@ -1,0 +1,12 @@
+version: '3'
+services:
+  docker-parcel-sample:   # サービス名、自分で決めることができる
+    build: ./             # Dockerfile のあるファイルの場所(git リポジトリのURL も指定可能)
+    container_name: docker-parcel-sample  # コンテナ名。指定しなかった場合は Docker compose で勝手に決められる
+    working_dir: /docker-app       # コンテナ内のワーキングディレクトリ
+    ports:                         # ポートフォワーディング設定。docker run コマンドの-pに相当
+     - 1234:1234                   # ローカルサーバー用
+     - 8080:8080                   # websocket用
+    volumes:                       # マウントするディレクトリ。docker run コマンドの-vに相当
+     - $PWD/src:/docker-app/src   
+    command: yarn start            # 実行コマンドを指定

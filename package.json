@@ -2,7 +2,7 @@
   "name": "docker-parcel-sample",
   "version": "1.0.0",
   "scripts": {
-    "start": "parcel index.html"
+    "start": "parcel src/index.html --hmr-port 8080"
   },
   "license": "ISC",
   "devDependencies": {
